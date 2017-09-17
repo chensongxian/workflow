@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.HistoryCheckedTaskDao">
+    <select id="queryPage" resultType="com.csx.workflow.model.HistoryCheckedTask"
+            parameterType="com.csx.workflow.model.HistoryCheckedTask">
+        SELECT
+        aht.ID_ AS taskId,
+        aht.START_TIME_ AS startTime,
+        aht.END_TIME_ AS endTime,
+        aht.PROC_INST_ID_ AS processId,
+        aht.NAME_ AS taskName,
+        arp.NAME_ AS taskType,
+        ahp.START_USER_ID_ as applayName
+        FROM
+        act_hi_taskinst aht
+        LEFT JOIN act_re_procdef arp ON aht.PROC_DEF_ID_ = arp.ID_
+        LEFT JOIN act_hi_procinst ahp on ahp.PROC_INST_ID_ = aht.PROC_INST_ID_
+          WHERE  aht.ASSIGNEE_ = #{taskAssigin}
+          and aht.DELETE_REASON_ = 'completed'
+
+        ORDER BY
+        aht.END_TIME_ DESC
+    </select>
+
+
+</mapper>

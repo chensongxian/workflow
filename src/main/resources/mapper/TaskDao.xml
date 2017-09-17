@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.TaskDao">
+    <select id="queryByUserIdList" parameterType="java.lang.String"
+            resultType="com.csx.workflow.model.TaskData">
+    SELECT
+	t.TASK_ID_ taskId,
+	t.USER_ID_ taskAssigin,
+	a.CREATE_TIME_ startTime,
+	a.PROC_INST_ID_ processId,
+	a.NAME_ taskName,
+	a.SUSPENSION_STATE_ state,
+	a.`PRIORITY_` AS priority
+FROM
+	(
+		SELECT
+			art.ID_ AS TASK_ID_,
+			art.ASSIGNEE_ AS USER_ID_
+		FROM
+			act_ru_task art
+		WHERE
+			art.ID_ IS NOT NULL
+		AND art.ASSIGNEE_ IS NOT NULL
+		AND art.ASSIGNEE_ = #{userId}
+		UNION
+			SELECT
+				TASK_ID_,
+				USER_ID_
+			FROM
+				ACT_RU_IDENTITYLINK I,
+				ACT_RU_TASK T
+			WHERE
+				TASK_ID_ IS NOT NULL
+			AND USER_ID_ IS NOT NULL
+			AND I.TASK_ID_ = T.ID_
+			AND T.ASSIGNEE_ IS NULL
+			AND TYPE_ = 'candidate'
+	) t,
+	act_ru_task a
+WHERE
+	t.TASK_ID_ = a.ID_
+AND t.USER_ID_ = #{userId}
+
+  </select>
+    <select id="queryByUserIdAndSystemIdList"
+            resultType="com.csx.workflow.model.TaskAPIData"
+            parameterType="com.csx.workflow.model.TaskAPIData">
+	SELECT
+		taskId,
+		startTime,
+		processInstanceId,
+		taskName,
+		dueDate,
+		taskKey,
+		priority,
+		systemId,
+		taskType,
+		processDefId,
+		KEY_ as processKey,
+		state,
+		arp.NAME_ as processDefName,
+		arp.CATEGORY_ as processCategory,
+		ahp.NAME_ as processInstanceName,
+		ahp.START_TIME_ as applyTime
+		FROM
+		(
+	SELECT
+	t.TASK_ID_ taskId,
+	a.CREATE_TIME_ startTime,
+	a.PROC_INST_ID_ processInstanceId,
+	a.NAME_ taskName,
+	a.DUE_DATE_ AS dueDate,
+	a.TASK_DEF_KEY_ taskKey,
+	a.PRIORITY_ AS priority,
+	a.TENANT_ID_ as systemId,
+	(SELECT '1' FROM DUAL) AS taskType,
+	a.PROC_DEF_ID_ processDefId,
+	IFNULL(a.SUSPENSION_STATE_, NULL) AS state
+FROM
+	(
+		SELECT
+			art.ID_ AS TASK_ID_,
+			art.ASSIGNEE_ AS USER_ID_
+		FROM
+			act_ru_task art
+		WHERE
+			art.ID_ IS NOT NULL
+		AND art.ASSIGNEE_ IS NOT NULL
+		AND art.ASSIGNEE_ = #{handerId}
+		AND (
+			art.FORM_KEY_ != '1'
+			OR art.FORM_KEY_ IS NULL
+		)
+		UNION
+			SELECT
+				TASK_ID_,
+				USER_ID_
+			FROM
+				ACT_RU_IDENTITYLINK I,
+				ACT_RU_TASK T
+			WHERE
+				TASK_ID_ IS NOT NULL
+			AND USER_ID_ IS NOT NULL
+			AND I.TASK_ID_ = T.ID_
+			AND T.ASSIGNEE_ IS NULL
+			AND TYPE_ = 'candidate'
+	) t,
+	act_ru_task a
+WHERE
+	t.TASK_ID_ = a.ID_
+AND t.USER_ID_ = #{handerId}
+UNION
+	SELECT
+		aht.ID_ AS taskId,
+		aht.START_TIME_ AS startTime,
+		aht.PROC_INST_ID_ AS processInstanceId,
+		aht.NAME_ AS taskName,
+		aht.DUE_DATE_ AS dueDate,
+		aht.TASK_DEF_KEY_ taskKey,
+		aht.PRIORITY_ AS priority,
+		aht.TENANT_ID_ as systemId,
+		(SELECT '2' FROM DUAL) AS taskType,
+		aht.PROC_DEF_ID_ AS processDefId,
+		IFNULL(
+			(
+				SELECT DISTINCT
+					art.SUSPENSION_STATE_
+				FROM
+					act_ru_task art
+				WHERE
+					art.PROC_INST_ID_ = aht.PROC_INST_ID_
+			),
+			3
+		) AS state
+	FROM
+		act_inform_process act,
+		act_hi_taskinst aht
+	WHERE
+		aht.ID_ = act.task_id
+	AND act.inform_person_id = #{handerId}
+		) AS new_run
+		LEFT JOIN act_re_procdef arp ON new_run.processDefId = arp.ID_
+		LEFT JOIN act_hi_procinst ahp on ahp.PROC_INST_ID_ = new_run.processInstanceId
+		<where>
+		<if test="processDefName != null and processDefName != ''">
+			and arp.NAME_ like CONCAT('%','${processDefName}','%')
+		</if>
+			<if test="processInstanceName != null and processInstanceName != ''">
+				and ahp.NAME_ like CONCAT('%','${processInstanceName}','%')
+			</if>
+			<if test="systemId != null and systemId != ''">
+				and ahp.TENANT_ID_ = #{systemId,jdbcType=VARCHAR}
+			</if>
+		<if test="state != null">
+			and new_run.state = #{state,jdbcType=INTEGER}
+		</if>
+			<if test="priority != null">
+				and new_run.priority  = #{priority,jdbcType=INTEGER}
+			</if>
+			<if test="processCategory != null">
+				and arp.CATEGORY_ = #{processCategory,jdbcType=VARCHAR}
+			</if>
+
+		</where>
+	ORDER BY
+		startTime DESC,
+		state ASC
+	</select>
+    <select id="queryByUserIdAndSystemIdChecked" parameterType="com.csx.workflow.model.TaskAPIData"
+            resultType="com.csx.workflow.model.TaskAPIData">
+		SELECT
+		taskId,
+		startTime,
+		endTime,
+		processInstanceId,
+		taskName,
+		priority,
+		processDefName,
+		startUserId,
+		applyTime,
+		stopTime,
+		processCategory,
+		processKey,
+		processInstanceName,
+		handerId,
+		IFNULL(state, 3) AS state
+		FROM
+		(
+		SELECT
+		aht.ID_ AS taskId,
+		aht.START_TIME_ AS startTime,
+		aht.END_TIME_ AS endTime,
+		aht.PROC_INST_ID_ AS processInstanceId,
+		aht.NAME_ AS taskName,
+		aht.PRIORITY_ AS priority,
+		arp.NAME_ AS processDefName,
+		ahp.START_USER_ID_ AS startUserId,
+		ahp.START_TIME_ AS applyTime,
+		ahp.END_TIME_ AS stopTime,
+		arp.CATEGORY_ as processCategory,
+		arp.KEY_ as processKey,
+		ahp.NAME_ as processInstanceName,
+		aht.ASSIGNEE_ as handerId,
+		(
+		SELECT DISTINCT
+		act_ru_task.SUSPENSION_STATE_
+		FROM
+		act_ru_task
+		WHERE
+		act_ru_task.PROC_INST_ID_ = aht.PROC_INST_ID_
+		) AS state
+		FROM
+		act_hi_taskinst aht
+		LEFT JOIN act_re_procdef arp ON aht.PROC_DEF_ID_ = arp.ID_
+		LEFT JOIN act_hi_procinst ahp ON ahp.PROC_INST_ID_ = aht.PROC_INST_ID_
+		WHERE
+		(
+		aht.FORM_KEY_ != '1'
+		OR aht.FORM_KEY_ IS NULL
+		)
+		and aht.END_TIME_ is not null
+		and ahp.TENANT_ID_ = #{systemId}
+		) AS totalProcessInstance
+        <where>
+            <if test="processInstanceId != null and processInstanceId != ''">
+                and processInstanceId like CONCAT('%','${processInstanceId}','%')
+            </if>
+            <if test="processDefName != null and processDefName != ''">
+                and processDefName like CONCAT('%','${processDefName}','%')
+            </if>
+			<if test="processInstanceName != null and processInstanceName != ''">
+				and processInstanceName like CONCAT('%','${processInstanceName}','%')
+			</if>
+			<if test="applyTime !=null">
+				and applyTime <![CDATA[ >= ]]> #{applyTime}
+			</if>
+			<if test="stopTime !=null">
+				and applyTime <![CDATA[ <= ]]> #{stopTime}
+			</if>
+            <if test="handerId != null and handerId != ''">
+                and handerId = #{handerId}
+            </if>
+			<if test="priority != null and priority != ''">
+				and priority = #{priority}
+			</if>
+			<if test="processCategory != null">
+				and processCategory = #{processCategory,jdbcType=INTEGER}
+			</if>
+
+            <if test="state != null and state != 3">
+                and state = #{state,jdbcType=INTEGER}
+            </if>
+            <if test="state != null and state == 3">
+                and state IS NULL
+            </if>
+        </where>
+        ORDER BY
+        state ASC,
+        applyTime DESC
+    </select>
+
+
+	<select id="queryDistinctProcessByUserIdAndSystemIdChecked" parameterType="com.csx.workflow.model.TaskAPIData"
+			resultType="com.csx.workflow.model.TaskAPIData">
+		SELECT
+		*
+		FROM
+		(
+		SELECT
+		taskId,
+		startTime,
+		endTime,
+		processInstanceId,
+		taskName,
+		priority,
+		processDefName,
+		startUserId,
+		applyTime,
+		stopTime,
+		processCategory,
+		processKey,
+		processInstanceName,
+		handerId,
+		IFNULL(state, 3) AS state
+		FROM
+		(
+		SELECT
+		aht.ID_ AS taskId,
+		aht.START_TIME_ AS startTime,
+		aht.END_TIME_ AS endTime,
+		aht.PROC_INST_ID_ AS processInstanceId,
+		aht.NAME_ AS taskName,
+		aht.PRIORITY_ AS priority,
+		arp.NAME_ AS processDefName,
+		ahp.START_USER_ID_ AS startUserId,
+		ahp.START_TIME_ AS applyTime,
+		ahp.END_TIME_ AS stopTime,
+		arp.CATEGORY_ AS processCategory,
+		arp.KEY_ AS processKey,
+		ahp.NAME_ AS processInstanceName,
+		aht.ASSIGNEE_ AS handerId,
+		(
+		SELECT DISTINCT
+		act_ru_task.SUSPENSION_STATE_
+		FROM
+		act_ru_task
+		WHERE
+		act_ru_task.PROC_INST_ID_ = aht.PROC_INST_ID_
+		) AS state
+		FROM
+		act_hi_taskinst aht
+		LEFT JOIN act_re_procdef arp ON aht.PROC_DEF_ID_ = arp.ID_
+		LEFT JOIN act_hi_procinst ahp ON ahp.PROC_INST_ID_ = aht.PROC_INST_ID_
+		WHERE
+		(
+		aht.FORM_KEY_ != '1'
+		OR aht.FORM_KEY_ IS NULL
+		)
+		AND aht.END_TIME_ IS NOT NULL
+		AND ahp.TENANT_ID_ = #{systemId}
+		) AS totalProcessInstance
+		WHERE
+		handerId = #{handerId}
+		ORDER BY
+		endTime DESC
+		) AS a
+		<where>
+			<if test="processInstanceId != null and processInstanceId != ''">
+				and processInstanceId like CONCAT('%','${processInstanceId}','%')
+			</if>
+			<if test="processDefName != null and processDefName != ''">
+				and processDefName like CONCAT('%','${processDefName}','%')
+			</if>
+			<if test="processInstanceName != null and processInstanceName != ''">
+				and processInstanceName like CONCAT('%','${processInstanceName}','%')
+			</if>
+			<if test="applyTime !=null">
+				and applyTime <![CDATA[ >= ]]> #{applyTime}
+			</if>
+			<if test="stopTime !=null">
+				and applyTime <![CDATA[ <= ]]> #{stopTime}
+			</if>
+			<if test="handerId != null and handerId != ''">
+				and handerId = #{handerId}
+			</if>
+			<if test="priority != null and priority != ''">
+				and priority = #{priority}
+			</if>
+			<if test="processCategory != null">
+				and processCategory = #{processCategory,jdbcType=INTEGER}
+			</if>
+			<if test="state != null ">
+				and state = #{state,jdbcType=INTEGER}
+			</if>
+	<!--		<if test="state != null and state == 3">
+				and state IS NULL
+			</if>-->
+		</where>
+		GROUP BY processInstanceId
+		ORDER BY
+		state ASC,
+		applyTime DESC
+	</select>
+
+</mapper>

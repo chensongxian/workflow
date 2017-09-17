@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.ProcessTypeDao">
+    <select id="queryList" parameterType="com.csx.workflow.model.ProcessType"
+            resultType="com.csx.workflow.model.ProcessType">
+		SELECT
+		id as id,
+		code_id as codeId,
+		name_ as name,
+		pid as pid,
+		state_ as state
+		FROM
+		act_process_type
+		<where>
+	<if test="id !=null and modelId !=''">
+		and  id = #{id,jdbcType=INTEGER}
+	</if>
+	<if test="name != null and name != ''">
+		and name_ like CONCAT('%','${name}','%')
+	</if>
+	<if test="pid != null">
+		and  pid = #{pid, jdbcType=INTEGER}
+	</if>
+
+
+</where>
+
+
+  </select>
+
+	<select id="queryById" resultType="com.csx.workflow.model.ProcessType">
+		SELECT
+		code_id as codeId,
+		name_ as name
+		FROM
+		act_process_type
+		WHERE  code_id = #{id}
+		AND  state_ = 0
+	</select>
+
+
+</mapper>

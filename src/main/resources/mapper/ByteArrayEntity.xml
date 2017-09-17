@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.ByteArrayDao">
+
+
+
+  <insert id="insertByteArray" parameterType="com.csx.workflow.model.ByteArrayEntity">
+    insert into  ACT_GE_BYTEARRAY(ID_, REV_, NAME_, BYTES_)
+    select #{ tempId}  ,REV_, NAME_, BYTES_ from ACT_GE_BYTEARRAY where ID_=#{id};
+  </insert>
+
+</mapper>

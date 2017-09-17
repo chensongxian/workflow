@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.ProcessDao">
+    <select id="queryProcessByGroupId" parameterType="java.lang.String"
+            resultType="com.csx.workflow.model.ProcessDefEntity">
+SELECT
+  	 rp.ID_ AS id,
+	rp.NAME_ AS name,
+	rp.KEY_ AS defKey,
+	rp.VERSION_ as LEVEL
+FROM
+	act_ru_identitylink ri,
+	act_re_procdef rp
+WHERE
+	rp.ID_ = ri.PROC_DEF_ID_
+	and ri.GROUP_ID_ = #{groupId}
+	and ri.TYPE_ = 'candidate'
+  </select>
+    <select id="queryProcessByNotGroupId" parameterType="java.lang.String"
+            resultType="com.csx.workflow.model.ProcessDefEntity">
+    select id,name,defKey,level from (
+ select
+		rp1.ID_ AS id,
+		rp1.NAME_ AS name,
+		rp1.KEY_ AS defKey,
+		rp1.VERSION_ as level
+from act_re_procdef as rp1
+    where rp1.KEY_ not in(
+  SELECT
+		 rp.KEY_
+		FROM
+		act_ru_identitylink ri,
+		act_re_procdef rp
+		WHERE
+		rp.ID_ = ri.PROC_DEF_ID_
+		 and ri.GROUP_ID_ = #{groupId}
+		and ri.TYPE_ = 'candidate')
+order by rp1.VERSION_ desc
+)as a
+group by defkey
+
+	</select>
+
+	<!--查询分页查询所有的流程-->
+	<select id="queryPageAllProcess" resultType="com.csx.workflow.model.ProcessDefEntity" parameterType="com.csx.workflow.model.ProcessDefEntity">
+		SELECT DISTINCT
+		defKey,
+		processDefName,
+		version,
+		act1.processCategory AS processCategory
+		FROM
+		(
+		SELECT
+		ard.KEY_ AS defKey,
+		ard.NAME_ AS processDefName,
+		ard.VERSION_ AS version,
+		ard.CATEGORY_ AS processCategory
+		FROM
+		(
+		SELECT
+		arp.KEY_,
+		arp.NAME_,
+		arp.VERSION_,
+		arp.ID_,
+		arp.CATEGORY_
+		FROM
+		act_re_procdef arp
+		ORDER BY
+		arp.VERSION_ DESC
+		) ard
+		GROUP BY
+		ard.key_
+		) AS act1,
+		act_process_type apt
+		WHERE
+		state_ = 0
+		<if test="processDefName !=null and processDefName !=''">
+			and act1.processDefName LIKE  CONCAT('%','${processDefName}','%')
+		</if>
+
+		<if test="processCategory != null and processCategory != ''">
+			and act1.processCategory = #{processCategory ,jdbcType=VARCHAR}
+		</if>
+
+	</select>
+
+
+	<!--查询分页查询所有的流程-->
+	<select id="queryProcessByKey" resultType="com.csx.workflow.model.ProcessDefEntity">
+		SELECT
+		ard.KEY_ as defKey,
+		ard.NAME_ as name,
+		ard.VERSION_ as level
+		FROM
+		(
+		SELECT
+		arp.KEY_,
+		arp.NAME_,
+		arp.VERSION_,
+		arp.ID_
+		FROM
+		act_re_procdef arp
+		ORDER BY
+		arp.VERSION_ DESC
+		) ard
+		where ard.KEY_ = #{defKey}
+		GROUP BY
+		ard.key_
+	</select>
+
+
+</mapper>

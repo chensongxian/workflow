@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.HistoricTaskInstanceExDao">
+  <select id="queryHistoricTaskByProcessInstanceId" resultType="com.csx.workflow.model.HistoricTaskInstanceEx" parameterType="com.csx.workflow.model.HistoricTaskInstanceEx">
+SELECT
+	aht.NAME_ AS NAME,
+	aht.TASK_DEF_KEY_ AS taskKey,
+	aht.PROC_INST_ID_ AS processInstanceId,
+	aht.PROC_DEF_ID_ AS processDefinitionId,
+	aht.DELETE_REASON_ AS deleteReason
+FROM
+	act_hi_taskinst aht
+WHERE
+	aht.PROC_INST_ID_ = #{processInstanceId}
+	order by if(isnull(aht.END_TIME_ ),1,0),aht.END_TIME_,aht.DURATION_ DESC
+  </select>
+
+	<select id="queryHistoryTasksByTaskId" resultType="com.csx.workflow.model.HistoricTaskInstanceEx" parameterType="com.csx.workflow.model.HistoricTaskInstanceEx">
+		SELECT
+		aht.TASK_DEF_KEY_ AS taskKey,
+		aht.PROC_INST_ID_ AS processInstanceId,
+		aht.PROC_DEF_ID_ AS processDefinitionId,
+		aht.ASSIGNEE_ as assignee
+		FROM
+		act_hi_taskinst aht
+		WHERE
+		aht.PROC_INST_ID_ = (
+		SELECT
+		aht.PROC_INST_ID_
+		FROM
+		act_hi_taskinst aht
+		WHERE
+		aht.ID_ = #{taskId}
+		)
+		<if test="formKey != null">
+			and aht.FORM_KEY_ = #{formKey}
+		</if>
+
+	</select>
+
+
+
+</mapper>

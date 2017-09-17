@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.LogDao">
+  <select id="queryHandleLogByProcessInstanceId" resultType="com.csx.workflow.model.CheckData">
+      SELECT
+      aht.TASK_DEF_KEY_ AS taskKey,
+      aht.NAME_ AS taskName,
+      aht.DELETE_REASON_ AS doWhat
+      FROM
+      act_hi_taskinst aht
+      WHERE
+      aht.PROC_INST_ID_ = #{processInstanceId}
+      and aht.END_TIME_ IS NOT NULL
+      ORDER BY aht.END_TIME_ ASC
+  </select>
+
+
+    <select id="queryCheckLogByProcessInstanceId" resultType="java.lang.String">
+SELECT
+	ahd.TEXT_
+FROM
+	act_hi_detail ahd
+WHERE
+	ahd.PROC_INST_ID_ = #{processInstanceId}
+AND ahd.NAME_ = #{type}
+ORDER BY
+	REV_ ASC
+    </select>
+
+
+
+
+
+
+</mapper>

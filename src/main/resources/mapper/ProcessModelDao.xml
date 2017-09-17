@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.csx.workflow.dao.ProcessModelDao">
+  <resultMap id="baseModelResultMap" type="com.csx.workflow.model.ProcessModel">
+    <id property="modelId" column="ID_" jdbcType="VARCHAR" />
+    <result property="editorSourceValueId" column="EDITOR_SOURCE_VALUE_ID_" jdbcType="VARCHAR" />
+    <result property="editorSourceExtraValueId" column="EDITOR_SOURCE_EXTRA_VALUE_ID_" jdbcType="VARCHAR" />
+  </resultMap>
+  <select id="selectOneById" parameterType="java.lang.String" resultMap="baseModelResultMap">
+  
+  select * from act_re_model where ID_=#{id}
+  </select>
+  
+  
+  
+    <insert id="insertBySelect"  parameterType="com.csx.workflow.model.ProcessModel">
+     insert into ACT_RE_MODEL(ID_,  REV_,NAME_,  CATEGORY_, CREATE_TIME_, LAST_UPDATE_TIME_, META_INFO_, EDITOR_SOURCE_VALUE_ID_, EDITOR_SOURCE_EXTRA_VALUE_ID_, TENANT_ID_)
+    
+    select #{processDefKey}, 1, NAME_,  CATEGORY_, now(),  now(),  META_INFO_, #{editorSourceValueId}, #{editorSourceExtraValueId}, TENANT_ID_
+    from ACT_RE_MODEL where ID_=#{modelId}
+  </insert>
+    <select id="query" parameterType="com.csx.workflow.model.ProcessModel"
+            resultType="com.csx.workflow.model.ProcessModel">
+		SELECT
+		arm.ID_ as modelId,
+		arm.KEY_ as modelKey,
+		arm.DEPLOYMENT_ID_ as deployId,
+		arm.NAME_ as modelName,
+		arm.VERSION_ as version,
+		arm.CREATE_TIME_ as createTime,
+		arm.LAST_UPDATE_TIME_ as updateTime,
+		ard.DEPLOY_TIME_ as deployTime,
+		arp.KEY_ as processDefKey,
+		arp.NAME_ as processName,
+		arp.VERSION_ as processDefVersion
+		FROM
+		act_re_model AS arm
+		LEFT JOIN act_re_procdef AS arp ON arm.DEPLOYMENT_ID_ = arp.DEPLOYMENT_ID_
+		LEFT JOIN act_re_deployment AS ard ON arm.DEPLOYMENT_ID_ = ard.ID_
+		LEFT JOIN act_ge_bytearray AS agb ON arm.EDITOR_SOURCE_EXTRA_VALUE_ID_ = agb.ID_
+<where>
+	<if test="modelId !=null and modelId !=''">
+		and  arm.ID_.modelId = #{modelId, jdbcType=VARCHAR}
+	</if>
+	<if test="modelKey !=null and modelKey !=''">
+		and   arm.KEY_ = #{modelKey, jdbcType=VARCHAR}
+	</if>
+	<if test="modelName != null and modelName != ''">
+		and arm.NAME_ like CONCAT('%','${modelName}','%')
+	</if>
+
+	<if test="deployId !=null and deployId !=''">
+		and   arm.DEPLOYMENT_ID_ = #{deployId, jdbcType=VARCHAR}
+	</if>
+	<if test="version != null">
+		and  arm.VERSION_ = #{version, jdbcType=INTEGER}
+	</if>
+
+	<if test="createTime != null">
+		and  arm.CREATE_TIME_ = #{createTime, jdbcType=TIMESTAMP}
+	</if>
+	<if test="updateTime != null">
+		and  	arm.LAST_UPDATE_TIME_ = #{updateTime, jdbcType=TIMESTAMP}
+	</if>
+	<if test="deployTime != null">
+		and  		ard.DEPLOY_TIME_ = #{deployTime, jdbcType=TIMESTAMP}
+	</if>
+
+	<if test="processDefKey !=null and processDefKey != ''">
+		and   arp.KEY_ = #{processDefKey, jdbcType=VARCHAR}
+	</if>
+
+	<if test="processName != null and processName != ''">
+		and arp.NAME_ like CONCAT('%','${processName}','%')
+	</if>
+	<if test="systemId != null and systemId != ''">
+		and arm.TENANT_ID_ = #{systemId}
+	</if>
+
+
+</where>
+		ORDER BY arm.CREATE_TIME_ desc
+
+  </select>
+
+
+</mapper>
